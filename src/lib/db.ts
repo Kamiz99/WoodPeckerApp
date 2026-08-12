@@ -2,8 +2,12 @@
  * Persistencia local en IndexedDB (sin dependencias).
  *
  * Todo vive en el navegador: no hay servidor, no hay cuenta, no se sube nada.
- * Un set de 1000 puzzles ocupa ~400 KB, así que localStorage se quedaría corto
+ * Un set de 1128 puzzles ocupa ~400 KB, así que localStorage se quedaría corto
  * en cuanto haya varios sets e historial de intentos.
+ *
+ * Si el navegador no deja usar IndexedDB (navegación privada, iframe con el
+ * almacenamiento bloqueado), se trabaja en memoria: la app sigue funcionando
+ * durante la sesión, pero no se guarda nada al cerrar.
  */
 
 import type { Attempt, Plan, PuzzleSet, Settings } from '../types'
@@ -18,107 +22,157 @@ export const STORE = {
   kv: 'kv',
 } as const
 
-let dbPromise: Promise<IDBDatabase> | null = null
+type StoreName = (typeof STORE)[keyof typeof STORE]
 
-function openDb(): Promise<IDBDatabase> {
+let dbPromise: Promise<IDBDatabase | null> | null = null
+const memory: Record<StoreName, Map<IDBValidKey, unknown>> = {
+  sets: new Map(),
+  plans: new Map(),
+  attempts: new Map(),
+  kv: new Map(),
+}
+
+/** ¿Se está trabajando solo en memoria? (lo usa la interfaz para avisar). */
+export let memoryOnly = false
+
+function openDb(): Promise<IDBDatabase | null> {
   if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
+  dbPromise = new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      memoryOnly = true
+      resolve(null)
+      return
+    }
+    let req: IDBOpenDBRequest
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION)
+    } catch {
+      memoryOnly = true
+      resolve(null)
+      return
+    }
     req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE.sets)) db.createObjectStore(STORE.sets, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(STORE.plans)) db.createObjectStore(STORE.plans, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(STORE.attempts)) {
-        const s = db.createObjectStore(STORE.attempts, { keyPath: 'id' })
+      const database = req.result
+      if (!database.objectStoreNames.contains(STORE.sets)) database.createObjectStore(STORE.sets, { keyPath: 'id' })
+      if (!database.objectStoreNames.contains(STORE.plans)) database.createObjectStore(STORE.plans, { keyPath: 'id' })
+      if (!database.objectStoreNames.contains(STORE.attempts)) {
+        const s = database.createObjectStore(STORE.attempts, { keyPath: 'id' })
         s.createIndex('byPlan', 'planId', { unique: false })
       }
-      if (!db.objectStoreNames.contains(STORE.kv)) db.createObjectStore(STORE.kv)
+      if (!database.objectStoreNames.contains(STORE.kv)) database.createObjectStore(STORE.kv)
     }
     req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
+    req.onerror = () => {
+      memoryOnly = true
+      resolve(null)
+    }
+    // Si otra pestaña bloquea la actualización, no dejamos la app colgada.
+    req.onblocked = () => {
+      memoryOnly = true
+      resolve(null)
+    }
   })
   return dbPromise
 }
 
-function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const t = db.transaction(store, mode)
-        const req = fn(t.objectStore(store))
-        req.onsuccess = () => resolve(req.result)
-        req.onerror = () => reject(req.error)
-      }),
-  )
-}
-
-export const db = {
-  async getAllSets(): Promise<PuzzleSet[]> {
-    return tx<PuzzleSet[]>(STORE.sets, 'readonly', (s) => s.getAll())
-  },
-  async getSet(id: string): Promise<PuzzleSet | undefined> {
-    return tx<PuzzleSet | undefined>(STORE.sets, 'readonly', (s) => s.get(id))
-  },
-  async putSet(set: PuzzleSet): Promise<void> {
-    await tx(STORE.sets, 'readwrite', (s) => s.put(set))
-  },
-  async deleteSet(id: string): Promise<void> {
-    await tx(STORE.sets, 'readwrite', (s) => s.delete(id))
-  },
-
-  async getAllPlans(): Promise<Plan[]> {
-    return tx<Plan[]>(STORE.plans, 'readonly', (s) => s.getAll())
-  },
-  async putPlan(plan: Plan): Promise<void> {
-    await tx(STORE.plans, 'readwrite', (s) => s.put(plan))
-  },
-  async deletePlan(id: string): Promise<void> {
-    await tx(STORE.plans, 'readwrite', (s) => s.delete(id))
-  },
-
-  async getAttempts(): Promise<Attempt[]> {
-    return tx<Attempt[]>(STORE.attempts, 'readonly', (s) => s.getAll())
-  },
-  async addAttempts(attempts: Attempt[]): Promise<void> {
+/** Almacén clave-valor uniforme: IndexedDB si se puede, memoria si no. */
+const kv = {
+  async getAll<T>(store: StoreName): Promise<T[]> {
     const database = await openDb()
-    await new Promise<void>((resolve, reject) => {
-      const t = database.transaction(STORE.attempts, 'readwrite')
-      const store = t.objectStore(STORE.attempts)
-      for (const a of attempts) store.put(a)
-      t.oncomplete = () => resolve()
-      t.onerror = () => reject(t.error)
+    if (!database) return [...memory[store].values()] as T[]
+    return new Promise((resolve, reject) => {
+      const req = database.transaction(store, 'readonly').objectStore(store).getAll()
+      req.onsuccess = () => resolve(req.result as T[])
+      req.onerror = () => reject(req.error)
     })
   },
-  async deleteAttemptsOfPlan(planId: string): Promise<void> {
+
+  async get<T>(store: StoreName, key: IDBValidKey): Promise<T | undefined> {
     const database = await openDb()
+    if (!database) return memory[store].get(key) as T | undefined
+    return new Promise((resolve, reject) => {
+      const req = database.transaction(store, 'readonly').objectStore(store).get(key)
+      req.onsuccess = () => resolve(req.result as T | undefined)
+      req.onerror = () => reject(req.error)
+    })
+  },
+
+  /** `key` solo para almacenes sin keyPath (kv). */
+  async putMany(store: StoreName, items: { value: unknown; key?: IDBValidKey }[]): Promise<void> {
+    const database = await openDb()
+    if (!database) {
+      for (const item of items) {
+        const key = item.key ?? (item.value as { id: IDBValidKey }).id
+        memory[store].set(key, item.value)
+      }
+      return
+    }
     await new Promise<void>((resolve, reject) => {
-      const t = database.transaction(STORE.attempts, 'readwrite')
-      const idx = t.objectStore(STORE.attempts).index('byPlan')
-      const req = idx.openCursor(IDBKeyRange.only(planId))
-      req.onsuccess = () => {
-        const cursor = req.result
-        if (cursor) {
-          cursor.delete()
-          cursor.continue()
-        }
+      const t = database.transaction(store, 'readwrite')
+      const objectStore = t.objectStore(store)
+      for (const item of items) {
+        if (item.key !== undefined) objectStore.put(item.value, item.key)
+        else objectStore.put(item.value)
       }
       t.oncomplete = () => resolve()
       t.onerror = () => reject(t.error)
     })
   },
 
-  async getSettings(): Promise<Settings | undefined> {
-    return tx<Settings | undefined>(STORE.kv, 'readonly', (s) => s.get('settings'))
+  async delete(store: StoreName, key: IDBValidKey): Promise<void> {
+    const database = await openDb()
+    if (!database) {
+      memory[store].delete(key)
+      return
+    }
+    await new Promise<void>((resolve, reject) => {
+      const t = database.transaction(store, 'readwrite')
+      t.objectStore(store).delete(key)
+      t.oncomplete = () => resolve()
+      t.onerror = () => reject(t.error)
+    })
   },
-  async putSettings(settings: Settings): Promise<void> {
-    await tx(STORE.kv, 'readwrite', (s) => s.put(settings, 'settings'))
+
+  async clearAll(): Promise<void> {
+    const database = await openDb()
+    if (!database) {
+      for (const store of Object.values(STORE)) memory[store].clear()
+      return
+    }
+    await new Promise<void>((resolve, reject) => {
+      const stores = Object.values(STORE)
+      const t = database.transaction(stores, 'readwrite')
+      for (const store of stores) t.objectStore(store).clear()
+      t.oncomplete = () => resolve()
+      t.onerror = () => reject(t.error)
+    })
   },
-  async getKv<T>(key: string): Promise<T | undefined> {
-    return tx<T | undefined>(STORE.kv, 'readonly', (s) => s.get(key))
+}
+
+export const db = {
+  getAllSets: () => kv.getAll<PuzzleSet>(STORE.sets),
+  getSet: (id: string) => kv.get<PuzzleSet>(STORE.sets, id),
+  putSet: (set: PuzzleSet) => kv.putMany(STORE.sets, [{ value: set }]),
+  deleteSet: (id: string) => kv.delete(STORE.sets, id),
+
+  getAllPlans: () => kv.getAll<Plan>(STORE.plans),
+  putPlan: (plan: Plan) => kv.putMany(STORE.plans, [{ value: plan }]),
+  deletePlan: (id: string) => kv.delete(STORE.plans, id),
+
+  getAttempts: () => kv.getAll<Attempt>(STORE.attempts),
+  addAttempts: (attempts: Attempt[]) => kv.putMany(STORE.attempts, attempts.map((value) => ({ value }))),
+
+  async deleteAttemptsOfPlan(planId: string): Promise<void> {
+    const attempts = await db.getAttempts()
+    for (const a of attempts) {
+      if (a.planId === planId) await kv.delete(STORE.attempts, a.id)
+    }
   },
-  async setKv(key: string, value: unknown): Promise<void> {
-    await tx(STORE.kv, 'readwrite', (s) => s.put(value, key))
-  },
+
+  getSettings: () => kv.get<Settings>(STORE.kv, 'settings'),
+  putSettings: (settings: Settings) => kv.putMany(STORE.kv, [{ value: settings, key: 'settings' }]),
+  getKv: <T,>(key: string) => kv.get<T>(STORE.kv, key),
+  setKv: (key: string, value: unknown) => kv.putMany(STORE.kv, [{ value, key }]),
 
   /** Copia de seguridad completa. */
   async exportAll() {
@@ -137,22 +191,17 @@ export const db = {
     attempts?: Attempt[]
     settings?: Settings
   }): Promise<void> {
-    for (const s of data.sets ?? []) await db.putSet(s)
-    for (const p of data.plans ?? []) await db.putPlan(p)
+    if (data.sets?.length) await kv.putMany(STORE.sets, data.sets.map((value) => ({ value })))
+    if (data.plans?.length) await kv.putMany(STORE.plans, data.plans.map((value) => ({ value })))
     if (data.attempts?.length) await db.addAttempts(data.attempts)
     if (data.settings) await db.putSettings(data.settings)
   },
 
-  async wipe(): Promise<void> {
-    const database = await openDb()
-    await new Promise<void>((resolve, reject) => {
-      const t = database.transaction([STORE.sets, STORE.plans, STORE.attempts, STORE.kv], 'readwrite')
-      t.objectStore(STORE.sets).clear()
-      t.objectStore(STORE.plans).clear()
-      t.objectStore(STORE.attempts).clear()
-      t.objectStore(STORE.kv).clear()
-      t.oncomplete = () => resolve()
-      t.onerror = () => reject(t.error)
-    })
+  wipe: () => kv.clearAll(),
+
+  /** true si el navegador no permite guardar nada de forma permanente. */
+  async isMemoryOnly(): Promise<boolean> {
+    await openDb()
+    return memoryOnly
   },
 }

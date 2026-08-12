@@ -14,7 +14,9 @@ import {
   validatePuzzle,
   type ImportFilters,
 } from '../lib/importer'
+import ImportWorker from '../workers/importWorker?worker&inline'
 import type { ImportResponse } from '../workers/importWorker'
+import { BUNDLED_PACKS, loadBundledPack, type BundledPack } from '../lib/bundledSets'
 import type { Puzzle, PuzzleSet } from '../types'
 
 const THEME_CHOICES = [
@@ -40,23 +42,6 @@ const THEME_CHOICES = [
   'intermezzo',
 ]
 
-/** Paquetes que vienen dentro de la app: no hace falta descargar nada. */
-const BUNDLED = [
-  {
-    file: 'tactics-1128.json',
-    title: 'Tácticas Lichess · 1128',
-    description:
-      'El set completo para hacer el método: 222 fáciles, 762 intermedios y 144 avanzados, con el mismo reparto que el libro.',
-    primary: true,
-  },
-  {
-    file: 'starter-mates.json',
-    title: 'Mates verificados · 156',
-    description: 'Mates en 1 y en 2 con solución única. Útil para calentar o para empezar con un set corto.',
-    primary: false,
-  },
-]
-
 export function Sets() {
   const { state, saveSet, deleteSet, notify } = useStore()
   const [importing, setImporting] = useState(false)
@@ -65,18 +50,16 @@ export function Sets() {
   const [detail, setDetail] = useState<PuzzleSet | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
 
-  const loadBundled = async (file: string) => {
-    setLoading(file)
+  const loadBundled = async (pack: BundledPack) => {
+    setLoading(pack.key)
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}sets/${file}`)
-      if (!res.ok) throw new Error('No se encontró el paquete incluido')
-      const data = await res.json()
-      const puzzles: Puzzle[] = (data.puzzles as Puzzle[]).filter(validatePuzzle)
+      const data = await loadBundledPack(pack.key)
+      const puzzles: Puzzle[] = data.puzzles.filter(validatePuzzle)
       const set: PuzzleSet = {
         id: uid('set'),
-        name: data.name ?? 'Paquete incluido',
+        name: data.name ?? pack.title,
         createdAt: Date.now(),
-        source: file === 'starter-mates.json' ? 'starter' : 'lichess',
+        source: pack.source,
         puzzles,
         notes: data.notes,
       }
@@ -115,16 +98,16 @@ export function Sets() {
           <span className="pill">sin descargar nada</span>
         </div>
         <div className="grid cols-2">
-          {BUNDLED.map((pack) => (
-            <div key={pack.file} className="card" style={{ background: 'var(--surface-2)' }}>
+          {BUNDLED_PACKS.map((pack) => (
+            <div key={pack.key} className="card" style={{ background: 'var(--surface-2)' }}>
               <h3>{pack.title}</h3>
               <p style={{ color: 'var(--muted)', fontSize: '0.84rem', margin: '6px 0 12px' }}>{pack.description}</p>
               <button
                 className={pack.primary ? 'btn primary' : 'btn'}
-                onClick={() => void loadBundled(pack.file)}
+                onClick={() => void loadBundled(pack)}
                 disabled={loading !== null}
               >
-                {loading === pack.file ? 'Cargando…' : 'Añadir a mis sets'}
+                {loading === pack.key ? 'Cargando…' : 'Añadir a mis sets'}
               </button>
             </div>
           ))}
@@ -215,7 +198,15 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
   const run = () => {
     if (!file) return
-    const worker = new Worker(new URL('../workers/importWorker.ts', import.meta.url), { type: 'module' })
+    let worker: Worker
+    try {
+      worker = new ImportWorker()
+    } catch {
+      // Algunos entornos (páginas incrustadas con CSP estricta) no permiten
+      // crear workers: sin worker no hay lectura en streaming.
+      notify('Este navegador no permite importar ficheros grandes aquí. Usa los paquetes incluidos.', 'warn')
+      return
+    }
     workerRef.current = worker
     setProgress({ pct: 0, scanned: 0, matched: 0 })
     worker.onmessage = async (e: MessageEvent<ImportResponse>) => {

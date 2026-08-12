@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import iconUrl from './assets/icon.svg'
 import { navigate, useRoute, type Route } from './lib/router'
 import { useStore } from './state/store'
 import { IconBook, IconChart, IconGear, IconHome, IconStack, IconTarget } from './components/Icons'
@@ -26,7 +27,7 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
+          <img src={iconUrl} alt="" />
           <div>
             <strong>Woodpecker</strong>
             <span>Entrenamiento táctico</span>

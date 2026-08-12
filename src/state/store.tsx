@@ -95,13 +95,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
 
   const reload = useCallback(async () => {
-    const [sets, plans, attempts, settings, activePlanId] = await Promise.all([
+    const [sets, plans, attempts, settings, activePlanId, memoryOnly] = await Promise.all([
       db.getAllSets(),
       db.getAllPlans(),
       db.getAttempts(),
       db.getSettings(),
       db.getKv<string>('activePlanId'),
+      db.isMemoryOnly(),
     ])
+    if (memoryOnly) {
+      window.setTimeout(
+        () =>
+          dispatch({
+            type: 'toast',
+            payload: {
+              text: 'Este navegador no deja guardar datos: podrás entrenar, pero se perderá al cerrar.',
+              kind: 'warn',
+            },
+          }),
+        800,
+      )
+    }
     dispatch({
       type: 'loaded',
       payload: {

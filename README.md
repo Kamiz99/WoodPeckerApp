@@ -4,6 +4,9 @@ Aplicación web para hacer el **Woodpecker Method** de Axel Smith y Hans Tikkane
 (200, 500, 1000… los que elijas) y repetirlo entero en 7 ciclos, cada uno con **la mitad de días** que el anterior,
 hasta que los patrones dejan de calcularse y se reconocen.
 
+**Pruébala aquí:** <https://claude.ai/code/artifact/2d616aeb-8e6c-4b47-ba44-931843002f78> (la app entera en un único
+fichero HTML, generado con `npm run build:single`).
+
 Funciona en el navegador, sin cuenta y sin servidor: los puzzles, el historial y las estadísticas se quedan en tu
 dispositivo (IndexedDB). Se puede instalar como app y usar sin conexión.
 
@@ -52,6 +55,7 @@ npm run dev        # http://localhost:5173
 npm run build      # genera dist/
 npm test           # tests de la lógica del método y del importador
 npm run gen:puzzles  # regenera el paquete de mates verificados
+npm run build:single # empaqueta la app entera en un solo HTML autocontenido
 ```
 
 Para regenerar el set de 1128 tácticas desde la base oficial:
@@ -82,7 +86,10 @@ El set incluido cubre un rango amplio (900–2400). Si prefieres ajustarlo a tu 
 - [`fzstd`](https://github.com/101arrowz/fzstd) para descomprimir Zstandard en el navegador.
 - La importación corre en un **Web Worker** con muestreo por depósito (*reservoir sampling*), para elegir N puzzles
   repartidos por todo el fichero sin cargarlo entero.
-- Persistencia en IndexedDB; gráficos en SVG escritos a mano.
+- Persistencia en IndexedDB, con reserva en memoria si el navegador la bloquea (navegación privada, iframes).
+- Piezas del tablero, worker de importación y paquetes de puzzles van dentro del paquete: cero peticiones de red en
+  marcha, y por eso la app cabe en un único HTML de 810 KB.
+- Gráficos en SVG escritos a mano.
 
 ```
 src/
