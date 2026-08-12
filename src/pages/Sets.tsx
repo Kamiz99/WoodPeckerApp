@@ -40,31 +40,52 @@ const THEME_CHOICES = [
   'intermezzo',
 ]
 
+/** Paquetes que vienen dentro de la app: no hace falta descargar nada. */
+const BUNDLED = [
+  {
+    file: 'tactics-1128.json',
+    title: 'Tácticas Lichess · 1128',
+    description:
+      'El set completo para hacer el método: 222 fáciles, 762 intermedios y 144 avanzados, con el mismo reparto que el libro.',
+    primary: true,
+  },
+  {
+    file: 'starter-mates.json',
+    title: 'Mates verificados · 156',
+    description: 'Mates en 1 y en 2 con solución única. Útil para calentar o para empezar con un set corto.',
+    primary: false,
+  },
+]
+
 export function Sets() {
   const { state, saveSet, deleteSet, notify } = useStore()
   const [importing, setImporting] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [planFor, setPlanFor] = useState<string | null>(null)
   const [detail, setDetail] = useState<PuzzleSet | null>(null)
+  const [loading, setLoading] = useState<string | null>(null)
 
-  const loadStarter = async () => {
+  const loadBundled = async (file: string) => {
+    setLoading(file)
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}sets/starter-mates.json`)
-      if (!res.ok) throw new Error('No se encontró el paquete inicial')
+      const res = await fetch(`${import.meta.env.BASE_URL}sets/${file}`)
+      if (!res.ok) throw new Error('No se encontró el paquete incluido')
       const data = await res.json()
       const puzzles: Puzzle[] = (data.puzzles as Puzzle[]).filter(validatePuzzle)
       const set: PuzzleSet = {
         id: uid('set'),
-        name: data.name ?? 'Paquete inicial',
+        name: data.name ?? 'Paquete incluido',
         createdAt: Date.now(),
-        source: 'starter',
+        source: file === 'starter-mates.json' ? 'starter' : 'lichess',
         puzzles,
         notes: data.notes,
       }
       await saveSet(set)
-      notify(`Paquete inicial cargado: ${nf(puzzles.length)} puzzles`)
+      notify(`${set.name}: ${nf(puzzles.length)} puzzles listos`)
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Error cargando el paquete', 'warn')
+    } finally {
+      setLoading(null)
     }
   }
 
@@ -79,15 +100,34 @@ export function Sets() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn primary" onClick={() => setImporting(true)}>
+          <button className="btn" onClick={() => setImporting(true)}>
             <IconUpload /> Importar de Lichess
           </button>
-          <button className="btn" onClick={() => setPasting(true)}>
+          <button className="btn ghost" onClick={() => setPasting(true)}>
             Pegar puzzles
           </button>
-          <button className="btn ghost" onClick={loadStarter}>
-            Paquete inicial
-          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">
+          <h2>Paquetes incluidos</h2>
+          <span className="pill">sin descargar nada</span>
+        </div>
+        <div className="grid cols-2">
+          {BUNDLED.map((pack) => (
+            <div key={pack.file} className="card" style={{ background: 'var(--surface-2)' }}>
+              <h3>{pack.title}</h3>
+              <p style={{ color: 'var(--muted)', fontSize: '0.84rem', margin: '6px 0 12px' }}>{pack.description}</p>
+              <button
+                className={pack.primary ? 'btn primary' : 'btn'}
+                onClick={() => void loadBundled(pack.file)}
+                disabled={loading !== null}
+              >
+                {loading === pack.file ? 'Cargando…' : 'Añadir a mis sets'}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -96,14 +136,15 @@ export function Sets() {
           <IconStack />
           <h2>Aún no tienes ningún set</h2>
           <p>
-            La forma rápida: descarga la base de puzzles de Lichess (CC0) desde{' '}
+            Empieza por el paquete <strong>Tácticas Lichess · 1128</strong> de aquí arriba. Si prefieres afinar el
+            rango de rating o los temas, descarga la base completa (CC0) de{' '}
             <a href="https://database.lichess.org/#puzzles" target="_blank" rel="noreferrer noopener">
               database.lichess.org
             </a>{' '}
-            e impórtala aquí. La app filtra por rating y temas y se queda solo con los puzzles que pidas.
+            e impórtala: la app filtra y se queda solo con los puzzles que pidas.
           </p>
-          <button className="btn primary" onClick={() => setImporting(true)}>
-            <IconUpload /> Importar ahora
+          <button className="btn ghost" onClick={() => setImporting(true)}>
+            <IconUpload /> Importar la base completa
           </button>
         </div>
       ) : (

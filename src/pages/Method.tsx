@@ -162,7 +162,12 @@ export function Method() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Qué hace esta app</h2>
         <ul>
-          <li>Construye el set fijo (importando la base de Lichess con los filtros que elijas) y lo congela.</li>
+          <li>
+            Trae un set de <strong>1128 tácticas de Lichess</strong> ya preparado, con el mismo reparto de dificultad
+            que el libro (222 fáciles, 762 intermedias, 144 avanzadas). O construye el tuyo importando la base entera
+            con los filtros que elijas.
+          </li>
+          <li>Congela el set: una vez creado el plan, esos son tus puzzles hasta el final.</li>
           <li>Genera el calendario de 7 ciclos con la regla de las mitades y te dice tu cuota de hoy.</li>
           <li>
             Cronometra cada posición, guarda cada intento y compara ciclo contra ciclo: el gráfico de tiempo total es la

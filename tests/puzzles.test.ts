@@ -135,3 +135,46 @@ describe('paquete inicial', () => {
     for (const p of data.puzzles as Puzzle[]) expect(isLegalPosition(p.fen)).toBe(true)
   })
 })
+
+describe('set de tácticas incluido', () => {
+  const data = JSON.parse(readFileSync(new URL('../public/sets/tactics-1128.json', import.meta.url), 'utf8'))
+  const puzzles = data.puzzles as Puzzle[]
+
+  it('trae al menos 1100 puzzles con el reparto del libro', () => {
+    expect(puzzles.length).toBeGreaterThanOrEqual(1100)
+    const easy = puzzles.filter((p) => (p.rating ?? 0) < 1400).length
+    const advanced = puzzles.filter((p) => (p.rating ?? 0) >= 2000).length
+    expect(easy).toBe(222)
+    expect(advanced).toBe(144)
+  })
+
+  it('todas las posiciones son legales y las variantes jugables', () => {
+    for (const p of puzzles) {
+      expect(isLegalPosition(p.fen)).toBe(true)
+      expect(validatePuzzle(p)).toBe(true)
+    }
+  })
+
+  it('la posición guardada es la de después de la jugada del rival', () => {
+    for (const p of puzzles.slice(0, 200)) {
+      expect(p.preFen).toBeTruthy()
+      expect(p.preMove).toBeTruthy()
+      expect(applyUci(p.preFen!, p.preMove!)).toBe(p.fen)
+    }
+  })
+
+  it('no hay puzzles repetidos y van de fácil a difícil', () => {
+    expect(new Set(puzzles.map((p) => p.id)).size).toBe(puzzles.length)
+    expect(new Set(puzzles.map((p) => p.fen)).size).toBe(puzzles.length)
+    const ratings = puzzles.map((p) => p.rating ?? 0)
+    expect(ratings).toEqual([...ratings].sort((a, b) => a - b))
+  })
+
+  it('todos traen rating, temas y enlace a Lichess', () => {
+    for (const p of puzzles) {
+      expect(p.rating).toBeGreaterThan(0)
+      expect(p.themes?.length).toBeGreaterThan(0)
+      expect(p.url).toContain('lichess.org')
+    }
+  })
+})

@@ -26,6 +26,9 @@ sección **Método**.
 
 ## Qué hace la app
 
+- **1128 tácticas incluidas**: un set de puzzles reales de [Lichess](https://database.lichess.org/#puzzles) (CC0) ya
+  preparado, con el mismo reparto de dificultad que el libro (222 fáciles, 762 intermedios, 144 avanzados). Se carga
+  desde **Sets → Paquetes incluidos**, sin descargar nada.
 - **Constructor de sets**: importa la base de puzzles de [Lichess](https://database.lichess.org/#puzzles) (CC0)
   filtrando por rating, temas, popularidad y número de partidas. Lee el `.csv` o directamente el `.csv.zst`
   comprimido en streaming dentro del navegador, así que el fichero de 1 GB no se carga en memoria ni sale de tu
@@ -37,8 +40,8 @@ sección **Método**.
   entonces juegas la variante. Es lo más parecido a resolver del libro sin mover las piezas.
 - **Estadísticas por ciclo**: tiempo total, media por puzzle, acierto, aceleración frente al ciclo 1 y la lista de tus
   «puntos negros» (los puzzles que fallas una y otra vez).
-- **Paquete inicial** de 120 mates en 1 y en 2 verificados por búsqueda exhaustiva, para poder empezar sin descargar
-  nada.
+- **Paquete de mates** con 156 mates en 1 y en 2 verificados por búsqueda exhaustiva (solución única), para calentar
+  o para hacer un ciclo corto.
 - Copia de seguridad en JSON, funcionamiento sin conexión e interfaz en español.
 
 ## Puesta en marcha
@@ -48,10 +51,19 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # genera dist/
 npm test           # tests de la lógica del método y del importador
-npm run gen:puzzles  # regenera el paquete inicial de mates verificados
+npm run gen:puzzles  # regenera el paquete de mates verificados
 ```
 
-### Cargar 1000 puzzles de Lichess
+Para regenerar el set de 1128 tácticas desde la base oficial:
+
+```bash
+# descarga y descomprime lichess_db_puzzle.csv de https://database.lichess.org/#puzzles
+node scripts/build-tactics-set.mjs lichess_db_puzzle.csv public/sets/tactics-1128.json
+```
+
+### Usar tu propio set (rating y temas a medida)
+
+El set incluido cubre un rango amplio (900–2400). Si prefieres ajustarlo a tu nivel:
 
 1. Descarga `lichess_db_puzzle.csv.zst` de <https://database.lichess.org/#puzzles>.
 2. En la app: **Sets → Importar de Lichess**, suelta el fichero (comprimido vale).
@@ -79,7 +91,7 @@ src/
   lib/chess.ts        UCI ⇄ SAN (en español), validación de jugadas y de posiciones
   workers/            importación en streaming
   pages/              Inicio · Entrenar · Sets · Progreso · Método · Ajustes
-scripts/              generador del paquete inicial de mates (verificado)
+scripts/              generador de los paquetes incluidos (mates verificados y set de 1128 tácticas)
 tests/                lógica del método, importador y validación de puzzles
 ```
 

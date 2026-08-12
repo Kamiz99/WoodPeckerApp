@@ -63,10 +63,10 @@ export function Dashboard() {
           <h2>Empieza en dos pasos</h2>
           <ol className="steps" style={{ marginTop: 14 }}>
             <li>
-              <strong>Crea tu set de puzzles</strong>
+              <strong>Elige tu set de puzzles</strong>
               <p style={{ color: 'var(--muted)', marginBottom: 8 }}>
-                Importa la base de Lichess (elige rating, temas y cuántos quieres: 200, 500, 1000…) o carga tu propio
-                fichero.
+                La app trae 1128 tácticas de Lichess listas para usar (mismo reparto de dificultad que el libro).
+                También puedes importar la base entera y filtrar por rating y temas.
               </p>
               <button className="btn" onClick={() => navigate('/sets')}>
                 <IconUpload /> Ir a Sets
