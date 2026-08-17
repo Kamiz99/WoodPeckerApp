@@ -19,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
 // Service worker: permite entrenar sin conexión una vez cargada la app.
 if ('serviceWorker' in navigator && import.meta.env.PROD && !import.meta.env.VITE_SINGLE_FILE) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' }).catch(() => {
       /* sin conexión offline: no es crítico */
     })
   })

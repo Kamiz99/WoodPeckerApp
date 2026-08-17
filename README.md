@@ -47,6 +47,25 @@ sección **Método**.
   o para hacer un ciclo corto.
 - Copia de seguridad en JSON, funcionamiento sin conexión e interfaz en español.
 
+## Publicarla en Vercel (y tenerla como app en el móvil)
+
+El repositorio ya trae `vercel.json`, así que no hay nada que configurar:
+
+1. En <https://vercel.com/new>, **Import Git Repository** → `Kamiz99/WoodPeckerApp`.
+2. Vercel detecta Vite y usa `npm run build` → `dist` (viene fijado en `vercel.json`). Pulsa **Deploy**.
+3. Si despliegas desde una rama que no es la principal: **Settings → Git → Production Branch**.
+
+Te queda una URL tipo `woodpeckerapp.vercel.app`. Para tenerla como app en el teléfono:
+
+- **Android (Chrome)**: abre la URL → menú ⋮ → *Instalar aplicación*.
+- **iPhone (Safari)**: abre la URL → botón compartir → *Añadir a pantalla de inicio*.
+
+Se abre a pantalla completa, con su icono, y **funciona sin conexión**: el service worker guarda la app y los puzzles
+viven en el propio teléfono. Puedes entrenar en el metro sin cobertura.
+
+> Los datos son de cada dispositivo. Para pasarlos del móvil al ordenador (o al revés): **Ajustes → Descargar copia** y
+> restaurarla en el otro.
+
 ## Puesta en marcha
 
 ```bash
