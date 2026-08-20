@@ -1,0 +1,43 @@
+# Configuración para Netlify. Con esto no hay que tocar nada en el panel:
+# se detecta el build, se sirve como aplicación de una sola página y se
+# ajustan las cachés para que una versión nueva entre al primer arranque.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Cualquier ruta devuelve el index: la app enruta por su cuenta. Los ficheros
+# que existen de verdad (iconos, manifiesto, sw.js) tienen prioridad sobre esta
+# regla, así que no hace falta excluirlos.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Los assets llevan hash en el nombre: se pueden cachear para siempre.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# El service worker y el manifiesto, nunca: si se quedan cacheados, el móvil
+# sigue abriendo la versión vieja después de un despliegue.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

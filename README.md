@@ -47,15 +47,19 @@ sección **Método**.
   o para hacer un ciclo corto.
 - Copia de seguridad en JSON, funcionamiento sin conexión e interfaz en español.
 
-## Publicarla en Vercel (y tenerla como app en el móvil)
+## Publicarla (y tenerla como app en el móvil)
 
-El repositorio ya trae `vercel.json`, así que no hay nada que configurar:
+El repositorio trae la configuración hecha para los dos sitios habituales: `netlify.toml` y `vercel.json`. En ambos
+casos el build es `npm run build` y la carpeta publicada es `dist`; no hay que tocar nada en el panel.
 
-1. En <https://vercel.com/new>, **Import Git Repository** → `Kamiz99/WoodPeckerApp`.
-2. Vercel detecta Vite y usa `npm run build` → `dist` (viene fijado en `vercel.json`). Pulsa **Deploy**.
-3. Si despliegas desde una rama que no es la principal: **Settings → Git → Production Branch**.
+- **Netlify**: <https://app.netlify.com/start> → *Import from Git* → `Kamiz99/WoodPeckerApp` → **Deploy**.
+- **Vercel**: <https://vercel.com/new> → *Import Git Repository* → `Kamiz99/WoodPeckerApp` → **Deploy**.
 
-Te queda una URL tipo `woodpeckerapp.vercel.app`. Para tenerla como app en el teléfono:
+Los dos publican la **rama principal** (`main`). Si el sitio sale en blanco o con "Page not found", casi siempre es que
+la rama publicada aún no tiene el código: comprueba en el panel qué commit está publicado. Para desplegar otra rama:
+*Site configuration → Build & deploy → Branches* en Netlify, o *Settings → Git → Production Branch* en Vercel.
+
+Te queda una URL tipo `woodpeckerapp.netlify.app`. Para tenerla como app en el teléfono:
 
 - **Android (Chrome)**: abre la URL → menú ⋮ → *Instalar aplicación*.
 - **iPhone (Safari)**: abre la URL → botón compartir → *Añadir a pantalla de inicio*.
