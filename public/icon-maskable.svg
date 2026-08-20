@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Woodpecker">
+  <rect width="512" height="512" fill="#12100e" />
+  <g transform="translate(102 102) scale(0.6)">
+    <rect x="96" y="96" width="72" height="320" rx="16" fill="#6b4a2b" />
+    <path d="M372 300l68 62-84-10z" fill="#1f1a15" />
+    <path d="M196 208c0-52 44-92 100-92 62 0 108 44 108 104 0 62-48 104-112 104-56 0-96-38-96-90z" fill="#20242c" />
+    <path d="M268 200c44-10 84 12 96 56 8 30-4 58-30 70-6-64-30-104-66-126z" fill="#39404c" />
+    <circle cx="252" cy="176" r="66" fill="#161a20" />
+    <path d="M258 116c14-30 42-44 76-40-16 16-22 34-20 56-18-14-38-19-56-16z" fill="#d8453a" />
+    <path d="M238 196c22 6 44 2 60-12-4 22-22 36-44 36-8 0-14-8-16-24z" fill="#f2f0ea" />
+    <path d="M190 168l-96 22 96 30z" fill="#f2a33c" />
+    <path d="M190 190l-96 0 96 30z" fill="#d2822a" />
+    <circle cx="240" cy="158" r="11" fill="#f2f0ea" />
+    <circle cx="243" cy="159" r="5.5" fill="#12100e" />
+  </g>
+</svg>
